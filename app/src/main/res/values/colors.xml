@@ -5,4 +5,9 @@
     <color name="colorAccent">#d2f6c5</color>
     <color name="colorLight">#f6f7d4</color>
     <color name="colorPrimaryDark">#ffffff</color>
+    <color name="colorGreen">#39ff5a</color>
+    <color name="colorWhite">#fdfdfd</color>
+    <color name="colorGris1">#d8d8d8</color>
+    <color name="colorGris2">#aeb9cc</color>
+    <color name="colorBlue">#218aff</color>
 </resources>

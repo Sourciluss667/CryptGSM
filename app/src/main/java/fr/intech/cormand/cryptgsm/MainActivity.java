@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -19,6 +20,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Adapter;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -26,10 +28,11 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    ImageView btnHamburgerMain;
+    ImageView btnNewConversation;
     RecyclerView conversationListView;
     List<Conversation> conversationList;
     RecyclerView.Adapter conversationsAdapter;
+    TextView noConversationsTextView;
 
     public RecyclerView.Adapter getConversationsAdapter() {
         return conversationsAdapter;
@@ -37,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_conversations);
 
         // Hide Title Bar & Fullscreen
         getSupportActionBar().hide();
@@ -56,20 +59,28 @@ public class MainActivity extends AppCompatActivity {
         conversationListView = findViewById(R.id.recycler_view_conversations);
         // Get Conversations
         conversationList = getAllConversations();
+        //conversationList = new ArrayList<>();
         // Put conversations in recyclerview
         conversationsAdapter = new ConversationsAdapter(conversationList);
         conversationListView.setLayoutManager(new LinearLayoutManager(this));
         conversationListView.setAdapter(conversationsAdapter);
 
+        // No conversations
+        if (conversationList.size() < 1) {
+            noConversationsTextView = findViewById(R.id.textViewNoConversations);
+            noConversationsTextView.setText("No conversations...");
+        }
 
-        // Menu btn
-        btnHamburgerMain = findViewById(R.id.btn_hamburger_main);
-        btnHamburgerMain.setOnClickListener(new View.OnClickListener() {
+
+        // New conv btn
+        btnNewConversation = findViewById(R.id.btn_new_conversation);
+        btnNewConversation.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Open Menu
-                Log.i("Btn", "Open Menu");
-                Toast.makeText(MainActivity.this, "Open Menu", Toast.LENGTH_SHORT).show();
+                // Open New conv
+                Toast.makeText(MainActivity.this, "New Conversation", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(v.getContext(), NewConversationActivity.class);
+                startActivity(intent);
             }
         });
 
