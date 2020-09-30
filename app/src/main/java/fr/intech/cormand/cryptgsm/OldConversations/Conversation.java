@@ -1,4 +1,4 @@
-package fr.intech.cormand.cryptgsm;
+package fr.intech.cormand.cryptgsm.OldConversations;
 
 import android.content.ContentUris;
 import android.content.Context;
@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+
+import fr.intech.cormand.cryptgsm.Msg;
 
 public class Conversation {
     private String snippet;

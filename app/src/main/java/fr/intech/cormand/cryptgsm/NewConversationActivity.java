@@ -1,10 +1,11 @@
 package fr.intech.cormand.cryptgsm;
 
-import android.app.Activity;
 import android.content.ContentUris;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
@@ -24,8 +25,10 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.List;
+
+import fr.intech.cormand.cryptgsm.Conversations.Conversation;
+import fr.intech.cormand.cryptgsm.Conversations.ConversationActivity;
 
 public class NewConversationActivity extends AppCompatActivity {
 
@@ -33,9 +36,7 @@ public class NewConversationActivity extends AppCompatActivity {
     private EditText textPhoneView;
     private TextView textContactName;
     private Button initBtn;
-    private String address;
-    private String displayName = "";
-    private String id = "";
+    private Conversation conversation;
 
     private static final int CONTACT_PICKER_RESULT = 1001;
 
@@ -44,6 +45,7 @@ public class NewConversationActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_new_conversations);
 
+        conversation = new Conversation();
         contactImageView = findViewById(R.id.imageView);
         textPhoneView = findViewById(R.id.editTextPhone);
         initBtn = findViewById(R.id.button);
@@ -66,9 +68,8 @@ public class NewConversationActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // Init conv with address in textPhoneView
-                address = textPhoneView.getText().toString().replaceAll(" ", "");
-                Log.i("ADDRESS", address);
-                if (PhoneNumberUtils.isGlobalPhoneNumber(address)) {
+                conversation.setAddress(textPhoneView.getText().toString().replaceAll(" ", ""));
+                if (PhoneNumberUtils.isGlobalPhoneNumber(conversation.getAddress())) {
                     // Good phone number
                     // Verify if conversation not exist ?
                     // Verify if address is link at a contact
@@ -76,10 +77,12 @@ public class NewConversationActivity extends AppCompatActivity {
 
                     // Send Init MSG...
 
-
+                    // Save conversation object
+                    conversation.saving(v.getContext());
 
                     // Go on conversation view
                     Intent intent = new Intent(v.getContext(), ConversationActivity.class);
+                    intent.putExtra("address", conversation.getAddress());
                     startActivity(intent);
                     finish();
 
@@ -127,22 +130,24 @@ public class NewConversationActivity extends AppCompatActivity {
 
                     if (cursor.getInt(cursor.getColumnIndex("has_phone_number")) == 1) {
                         // Get DisplayName & Display
-                        displayName = cursor.getString(cursor.getColumnIndex("display_name"));
-                        if (displayName != "") {
-                            textContactName.setText(displayName);
+                        conversation.setDisplayName(cursor.getString(cursor.getColumnIndex("display_name")));
+                        if (conversation.getDisplayName() != "") {
+                            textContactName.setText(conversation.getDisplayName());
                         }
 
-                        id = cursor.getString(cursor.getColumnIndex("_id"));
+                        conversation.setId(cursor.getString(cursor.getColumnIndex("_id")));
                         // Get Image & Display
                         try {
-                            if(id != null) {
+                            if(conversation.getId() != null) {
                                 InputStream inputStream = ContactsContract.Contacts.openContactPhotoInputStream(getContentResolver(),
-                                        ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, new Long(id)));
+                                        ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, new Long(conversation.getId())));
 
                                 if (inputStream != null) {
-                                    contactImageView.setImageBitmap(BitmapFactory.decodeStream(inputStream));
+                                    conversation.setContactPicture(BitmapFactory.decodeStream(inputStream));
+                                    contactImageView.setImageBitmap(conversation.getContactPicture());
                                 } else {
                                     contactImageView.setImageResource(R.drawable.default_contact_image);
+                                    conversation.setContactPicture(((BitmapDrawable)contactImageView.getDrawable()).getBitmap());
                                 }
 
                                 if (inputStream != null) {
@@ -158,12 +163,12 @@ public class NewConversationActivity extends AppCompatActivity {
                                 ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                                 null,
                                 ContactsContract.CommonDataKinds.Phone.CONTACT_ID +" = ?",
-                                new String[]{id}, null);
+                                new String[]{conversation.getId()}, null);
 
                         if (cursor1.moveToNext())
                         {
-                            address = cursor1.getString(cursor1.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
-                            textPhoneView.setText(address);
+                            conversation.setAddress(cursor1.getString(cursor1.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)));
+                            textPhoneView.setText(conversation.getAddress());
                         }
 
 

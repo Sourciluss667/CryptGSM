@@ -1,8 +1,9 @@
-package fr.intech.cormand.cryptgsm;
+package fr.intech.cormand.cryptgsm.OldConversations;
 
-import android.content.Context;
 import android.os.AsyncTask;
-import android.util.Log;
+
+import fr.intech.cormand.cryptgsm.MainActivity;
+import fr.intech.cormand.cryptgsm.OldConversations.Conversation;
 
 public class ConversationTask extends AsyncTask<Conversation, Integer, Boolean> {
     MainActivity ctx;

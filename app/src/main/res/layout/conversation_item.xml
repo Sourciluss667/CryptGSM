@@ -17,6 +17,12 @@
         android:orientation="vertical"
         android:gravity="center">
         <TextView
+            android:id="@+id/display_name_textview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="displayName"
+            />
+        <TextView
             android:id="@+id/conv_item_address"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

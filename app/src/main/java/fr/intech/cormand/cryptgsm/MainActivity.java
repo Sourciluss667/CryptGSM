@@ -1,30 +1,36 @@
 package fr.intech.cormand.cryptgsm;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
-import android.app.Activity;
+import android.content.ContentUris;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Message;
-import android.provider.Telephony;
+import android.provider.ContactsContract;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Adapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.List;
+
+import fr.intech.cormand.cryptgsm.Conversations.Conversation;
+import fr.intech.cormand.cryptgsm.Conversations.ConversationsAdapter;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -58,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
         // RecyclerView
         conversationListView = findViewById(R.id.recycler_view_conversations);
         // Get Conversations
-        conversationList = getAllConversations();
+        conversationList = Conversation.loadingAll(this);
         if (conversationList == null) {
             conversationList = new ArrayList<>();
         }
@@ -72,7 +78,6 @@ public class MainActivity extends AppCompatActivity {
             noConversationsTextView = findViewById(R.id.textViewNoConversations);
             noConversationsTextView.setText("No conversations...");
         }
-
 
         // New conv btn
         btnNewConversation = findViewById(R.id.btn_new_conversation);
@@ -88,6 +93,12 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        conversationsAdapter.notifyDataSetChanged();
+    }
+
     // Messages methods
     private boolean getPermissions() {
         if (checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED ||
@@ -99,14 +110,45 @@ public class MainActivity extends AppCompatActivity {
         }
         return false;
     }
-
+/*
     private List<Conversation> getAllConversations() {
         List<Conversation> conversations = new ArrayList<>();
+
+        try {
+            // Retrieve object
+            FileInputStream fis = context.openFileInput(SAVE_CONVERSATIONS_PATH + "save_" + address + ".cryptmsg");
+            ObjectInputStream is = new ObjectInputStream(fis);
+            c = (Conversation) is.readObject();
+            is.close();
+            fis.close();
+
+            // Retireve Bitmap
+            if(c.getId() != null) {
+                InputStream inputStream = ContactsContract.Contacts.openContactPhotoInputStream(context.getContentResolver(),
+                        ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, new Long(c.getId())));
+
+                if (inputStream != null) {
+                    c.setContactPicture(BitmapFactory.decodeStream(inputStream));
+                }
+
+                if (inputStream != null) {
+                    inputStream.close();
+                }
+            }
+
+        } catch (FileNotFoundException e) {
+            Log.e("File Error", "Not found file : " + SAVE_CONVERSATIONS_PATH + "save_" + address + ".cryptmsg" + e);
+        } catch (IOException e) {
+            Log.e("File Error", e.toString());
+        } catch (ClassNotFoundException e) {
+            Log.e("ClassNotFound", e.toString());
+        }
+
         Cursor cursor = getContentResolver().query(Uri.parse("content://sms/conversations"), null, null, null, null);
 
         if (cursor.moveToFirst()) {
             do {
-                Conversation c = new Conversation(this);
+                Conversation c = new Conversation();
                 for(int i = 0; i < cursor.getColumnCount(); i++)
                 {
                     switch (cursor.getColumnName(i)) {
@@ -116,17 +158,12 @@ public class MainActivity extends AppCompatActivity {
                         case "thread_id":
                             c.setThread_id(cursor.getString(i));
                             break;
-                        case "msg_count":
-                            c.setMsg_count(cursor.getString(i));
-                            break;
                     }
                 }
 
                 // Thread async
                 // ConversationTask ct = new ConversationTask(this);
                 // ct.execute(c);
-
-                c.startMore();
 
                 conversations.add(c);
             } while (cursor.moveToNext());
@@ -136,4 +173,5 @@ public class MainActivity extends AppCompatActivity {
 
         return conversations;
     }
+    */
 }

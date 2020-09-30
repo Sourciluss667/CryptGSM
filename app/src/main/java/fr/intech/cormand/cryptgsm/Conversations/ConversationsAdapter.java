@@ -1,21 +1,19 @@
-package fr.intech.cormand.cryptgsm;
+package fr.intech.cormand.cryptgsm.Conversations;
 
-import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.w3c.dom.Text;
-
 import java.util.List;
+
+import fr.intech.cormand.cryptgsm.Conversations.Conversation;
+import fr.intech.cormand.cryptgsm.R;
 
 public class ConversationsAdapter extends RecyclerView.Adapter<ConversationsAdapter.ConversationsViewHolder> {
     private List<Conversation> items;
@@ -23,7 +21,9 @@ public class ConversationsAdapter extends RecyclerView.Adapter<ConversationsAdap
     public static class ConversationsViewHolder extends RecyclerView.ViewHolder {
         TextView snippet;
         TextView address;
+        TextView displayName;
         ImageView picture;
+        String addressId;
         View v;
 
         public ConversationsViewHolder(View v) {
@@ -32,6 +32,18 @@ public class ConversationsAdapter extends RecyclerView.Adapter<ConversationsAdap
             snippet = v.findViewById(R.id.conv_item_snippet);
             address = v.findViewById(R.id.conv_item_address);
             picture = v.findViewById(R.id.conv_item_picture);
+            displayName = v.findViewById(R.id.display_name_textview);
+
+            v.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    // Click on 1 conversation
+                    Intent intent = new Intent(v.getContext(), ConversationActivity.class);
+                    intent.putExtra("address", addressId);
+                    v.getContext().startActivity(intent);
+                }
+            });
+
         }
     }
 
@@ -56,11 +68,10 @@ public class ConversationsAdapter extends RecyclerView.Adapter<ConversationsAdap
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
         holder.snippet.setText(items.get(position).getSnippet());
-        if (items.get(position).getContactName() != "") {
-            holder.address.setText(items.get(position).getContactName());
-        } else {
-            holder.address.setText(items.get(position).getAddress());
-        }
+        holder.address.setText(items.get(position).getAddress());
+        holder.displayName.setText(items.get(position).getDisplayName());
+        holder.addressId = items.get(position).getAddress();
+
         if (items.get(position).getContactPicture() != null) {
             holder.picture.setImageBitmap(items.get(position).getContactPicture());
         }
