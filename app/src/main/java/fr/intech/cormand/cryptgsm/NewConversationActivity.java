@@ -66,13 +66,22 @@ public class NewConversationActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // Init conv with address in textPhoneView
-                address = textPhoneView.getText().toString();
+                address = textPhoneView.getText().toString().replaceAll(" ", "");
                 Log.i("ADDRESS", address);
                 if (PhoneNumberUtils.isGlobalPhoneNumber(address)) {
                     // Good phone number
                     // Verify if conversation not exist ?
                     // Verify if address is link at a contact
 
+
+                    // Send Init MSG...
+
+
+
+                    // Go on conversation view
+                    Intent intent = new Intent(v.getContext(), ConversationActivity.class);
+                    startActivity(intent);
+                    finish();
 
                 } else {
                     //Phone number not valid

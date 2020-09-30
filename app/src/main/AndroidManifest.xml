@@ -23,6 +23,9 @@
         <activity android:name=".NewConversationActivity">
 
         </activity>
+        <activity android:name=".ConversationActivity">
+
+        </activity>
     </application>
 
 </manifest>

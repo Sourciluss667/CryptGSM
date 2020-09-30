@@ -59,7 +59,9 @@ public class MainActivity extends AppCompatActivity {
         conversationListView = findViewById(R.id.recycler_view_conversations);
         // Get Conversations
         conversationList = getAllConversations();
-        //conversationList = new ArrayList<>();
+        if (conversationList == null) {
+            conversationList = new ArrayList<>();
+        }
         // Put conversations in recyclerview
         conversationsAdapter = new ConversationsAdapter(conversationList);
         conversationListView.setLayoutManager(new LinearLayoutManager(this));
