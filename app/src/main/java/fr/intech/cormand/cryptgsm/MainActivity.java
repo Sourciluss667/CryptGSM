@@ -37,12 +37,7 @@ public class MainActivity extends AppCompatActivity {
     ImageView btnNewConversation;
     RecyclerView conversationListView;
     List<Conversation> conversationList;
-    RecyclerView.Adapter conversationsAdapter;
     TextView noConversationsTextView;
-
-    public RecyclerView.Adapter getConversationsAdapter() {
-        return conversationsAdapter;
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,21 +58,10 @@ public class MainActivity extends AppCompatActivity {
 
         // RecyclerView
         conversationListView = findViewById(R.id.recycler_view_conversations);
-        // Get Conversations
-        conversationList = Conversation.loadingAll(this);
-        if (conversationList == null) {
-            conversationList = new ArrayList<>();
-        }
+        conversationList = new ArrayList<>();
         // Put conversations in recyclerview
-        conversationsAdapter = new ConversationsAdapter(conversationList);
         conversationListView.setLayoutManager(new LinearLayoutManager(this));
-        conversationListView.setAdapter(conversationsAdapter);
 
-        // No conversations
-        if (conversationList.size() < 1) {
-            noConversationsTextView = findViewById(R.id.textViewNoConversations);
-            noConversationsTextView.setText("No conversations...");
-        }
 
         // New conv btn
         btnNewConversation = findViewById(R.id.btn_new_conversation);
@@ -96,7 +80,16 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        conversationsAdapter.notifyDataSetChanged();
+        conversationList = Conversation.loadingAll(this);
+
+        // No conversations
+        if (conversationList.size() < 1) {
+            noConversationsTextView = findViewById(R.id.textViewNoConversations);
+            noConversationsTextView.setText("No conversations...");
+        }
+
+        conversationListView.setAdapter(new ConversationsAdapter(conversationList));
+        conversationListView.invalidate();
     }
 
     // Messages methods

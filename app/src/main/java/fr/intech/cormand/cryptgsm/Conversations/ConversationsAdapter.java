@@ -2,6 +2,7 @@ package fr.intech.cormand.cryptgsm.Conversations;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,6 +18,14 @@ import fr.intech.cormand.cryptgsm.R;
 
 public class ConversationsAdapter extends RecyclerView.Adapter<ConversationsAdapter.ConversationsViewHolder> {
     private List<Conversation> items;
+
+    public List<Conversation> getItems() {
+        return items;
+    }
+
+    public void setItems(List<Conversation> items) {
+        this.items = items;
+    }
 
     public static class ConversationsViewHolder extends RecyclerView.ViewHolder {
         TextView snippet;
@@ -88,13 +97,5 @@ public class ConversationsAdapter extends RecyclerView.Adapter<ConversationsAdap
     @Override
     public int getItemCount() {
         return items.size();
-    }
-
-    public List<Conversation> getItems() {
-        return items;
-    }
-
-    public void setItems(List<Conversation> items) {
-        this.items = items;
     }
 }

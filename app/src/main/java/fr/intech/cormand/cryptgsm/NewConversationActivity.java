@@ -25,6 +25,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.List;
 
 import fr.intech.cormand.cryptgsm.Conversations.Conversation;
@@ -73,9 +75,6 @@ public class NewConversationActivity extends AppCompatActivity {
                     // Good phone number
                     // Verify if conversation not exist ?
                     // Verify if address is link at a contact
-
-
-                    // Send Init MSG...
 
                     // Save conversation object
                     conversation.saving(v.getContext());

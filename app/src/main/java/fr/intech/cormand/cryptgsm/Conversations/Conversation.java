@@ -1,7 +1,12 @@
 package fr.intech.cormand.cryptgsm.Conversations;
 
+import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -9,11 +14,13 @@ import android.nfc.Tag;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.provider.ContactsContract;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,8 +31,20 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.crypto.Cipher;
 
 import fr.intech.cormand.cryptgsm.Msg;
 import fr.intech.cormand.cryptgsm.R;
@@ -40,20 +59,124 @@ public class Conversation implements Serializable {
     private String displayName = "Anonymous"; // good
     private String id = ""; // good
     private Boolean init;
+    private String publicKey = "";
+    private String privateKey = "";
+    private String publicKeyContact = "";
+    private transient SmsManager smsManager = null;
 
     public Conversation() {
         init = false;
+        smsManager = SmsManager.getDefault();
     }
 
-    public Conversation(String snippet, String thread_id, String address, String contactName, String contactId, Bitmap contactPicture, List<Msg> msgList, String displayName, String id) {
-        init = false;
-        this.snippet = snippet;
-        this.thread_id = thread_id;
-        this.address = address;
-        this.contactPicture = contactPicture;
-        this.msgList = msgList;
-        this.displayName = displayName;
-        this.id = id;
+    private void generateKey () throws NoSuchAlgorithmException {
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+
+            SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
+
+            // 512 is keysize
+            keyGen.initialize(512, random);
+
+            KeyPair generateKeyPair = keyGen.generateKeyPair();
+            byte[] publicKeyBytes = generateKeyPair.getPublic().getEncoded();
+            byte[] privateKeyBytes = generateKeyPair.getPrivate().getEncoded();
+            StringBuffer publicKeyBuf = new StringBuffer();
+            StringBuffer privateKeyBuf = new StringBuffer();
+
+        for (int i = 0; i < publicKeyBytes.length; ++i) {
+            publicKeyBuf.append(Integer.toHexString(0x0100 + (publicKeyBytes[i] & 0x00FF)).substring(1));
+        }
+        for (int i = 0; i < privateKeyBytes.length; ++i) {
+            privateKeyBuf.append(Integer.toHexString(0x0100 + (privateKeyBytes[i] & 0x00FF)).substring(1));
+        }
+
+        publicKey = publicKeyBuf.toString();
+        privateKey = privateKeyBuf.toString();
+
+        Log.i("KEY", "PUBLIC: " + publicKey);
+        Log.i("KEY", "PRIVATE: " + privateKey);
+    }
+
+    public void sendInitMsg(final Context ctx) {
+
+        // Generate Key
+        try {
+            generateKey();
+        } catch (Exception e) {
+            Log.e("sendInitMsg", "Generate Key Error !");
+            e.printStackTrace();
+        }
+
+        // Send SMS init
+        // MSG pending intent
+        if (smsManager == null) {
+            smsManager = SmsManager.getDefault();
+        }
+
+        PendingIntent sentPendingIntent = PendingIntent.getBroadcast(ctx, 0, new Intent("SMS_SENT"), 0);
+        ctx.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (getResultCode() == Activity.RESULT_OK) {
+                    // Message en envoi
+                    Log.i("sentPendingIntent", "Envoi !");
+                } else {
+                    Toast.makeText(ctx.getApplicationContext(), "Error sending init message !", Toast.LENGTH_LONG).show();
+                    Log.e("MSG-Init", "ERROR send PENDING INTENT : " + getResultCode());
+                }
+            }
+        }, new IntentFilter("SMS_SENT"));
+
+        // MSG delivery intent
+        PendingIntent deliveryPendingIntent = PendingIntent.getBroadcast(ctx, 0, new Intent("SMS_DELIVERED"), 0);
+        ctx.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (getResultCode() == Activity.RESULT_OK) {
+                    // Message envoyé
+                    Log.i("deliveryPendingIntent", "Envoyer !");
+                    setInit(true);
+                } else {
+                    Toast.makeText(ctx.getApplicationContext(), "Error sending init message !", Toast.LENGTH_LONG).show();
+                    Log.e("MSG-Init", "ERROR delivery PENDING INTENT : " + getResultCode());
+                }
+            }
+        }, new IntentFilter("SMS_DELIVERED"));
+
+        int index = this.publicKey.length() / 2;
+        String firstPart = this.publicKey.substring(0, index);
+        String secondPart = this.publicKey.substring(index);
+
+        smsManager.sendTextMessage(this.address, null, "[CryptSMS-init1]" + firstPart + "[/CryptSMS-init1]", sentPendingIntent, deliveryPendingIntent);
+        smsManager.sendTextMessage(this.address, null, "[CryptSMS-init2]" + secondPart + "[/CryptSMS-init2]", sentPendingIntent, deliveryPendingIntent);
+    }
+
+    public static byte[] encrypt(byte[] publicKey, byte[] inputData)
+            throws Exception {
+
+        PublicKey key = KeyFactory.getInstance("RSA")
+                .generatePublic(new X509EncodedKeySpec(publicKey));
+
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.ENCRYPT_MODE, key);
+
+        byte[] encryptedBytes = cipher.doFinal(inputData);
+
+        return encryptedBytes;
+    }
+
+    public static byte[] decrypt(byte[] privateKey, byte[] inputData)
+            throws Exception {
+
+        PrivateKey key = KeyFactory.getInstance("RSA")
+                .generatePrivate(new PKCS8EncodedKeySpec(privateKey));
+
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.DECRYPT_MODE, key);
+
+        byte[] decryptedBytes = cipher.doFinal(inputData);
+
+        return decryptedBytes;
     }
 
     public boolean saving(Context context) {
@@ -147,12 +270,6 @@ public class Conversation implements Serializable {
         return result;
     }
 
-    public boolean sendInit() {
-
-        return false;
-    }
-
-
     public String getSnippet() {
         return snippet;
     }
@@ -191,6 +308,34 @@ public class Conversation implements Serializable {
 
     public void setMsgList(List<Msg> msgList) {
         this.msgList = msgList;
+    }
+
+    public String getPrivateKey() {
+        return privateKey;
+    }
+
+    public void setPrivateKey(String privateKey) {
+        this.privateKey = privateKey;
+    }
+
+    public String getPublicKey() {
+        return publicKey;
+    }
+
+    public void setPublicKey(String publicKey) {
+        this.publicKey = publicKey;
+    }
+
+    public void setPublicKeyContact(String publicKeyContact) {
+        this.publicKeyContact = publicKeyContact;
+    }
+
+    public String getPublicKeyContact() {
+        return publicKeyContact;
+    }
+
+    public void setInit(Boolean init) {
+        this.init = init;
     }
 
     public String getDisplayName() {

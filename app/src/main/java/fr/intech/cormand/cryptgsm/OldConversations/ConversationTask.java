@@ -22,7 +22,7 @@ public class ConversationTask extends AsyncTask<Conversation, Integer, Boolean> 
     protected void onPostExecute(Boolean aBoolean) {
         super.onPostExecute(aBoolean);
         // Reload RecyclerView
-        ctx.getConversationsAdapter().notifyDataSetChanged();
+        //ctx.getConversationsAdapter().notifyDataSetChanged();
     }
 
     public void setCtx(MainActivity ctx) {

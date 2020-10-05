@@ -1,11 +1,18 @@
 package fr.intech.cormand.cryptgsm.Conversations;
 
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.telephony.SmsManager;
+import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -48,8 +55,8 @@ public class ConversationActivity extends Activity {
 
 
             } else { // Init non fait
-                //Lance l'init
-                c.sendInit();
+                // Send init
+                c.sendInitMsg(this);
 
                 // Affiche le message
                 popupMessageView.setTextColor(Color.rgb(255, 0, 0));
