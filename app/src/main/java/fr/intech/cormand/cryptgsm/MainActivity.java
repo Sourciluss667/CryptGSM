@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import fr.intech.cormand.cryptgsm.Conversations.Conversation;
+import fr.intech.cormand.cryptgsm.Conversations.ConversationActivity;
 import fr.intech.cormand.cryptgsm.Conversations.ConversationsAdapter;
 
 public class MainActivity extends AppCompatActivity {
@@ -80,6 +81,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        verifyInitRecept();
+
         conversationList = Conversation.loadingAll(this);
 
         // No conversations
@@ -101,70 +105,64 @@ public class MainActivity extends AppCompatActivity {
             requestPermissions(new String[] { Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS, Manifest.permission.READ_CONTACTS }, 2);
             return true;
         }
-        return false;
+        return true;
     }
-/*
-    private List<Conversation> getAllConversations() {
-        List<Conversation> conversations = new ArrayList<>();
 
-        try {
-            // Retrieve object
-            FileInputStream fis = context.openFileInput(SAVE_CONVERSATIONS_PATH + "save_" + address + ".cryptmsg");
-            ObjectInputStream is = new ObjectInputStream(fis);
-            c = (Conversation) is.readObject();
-            is.close();
-            fis.close();
-
-            // Retireve Bitmap
-            if(c.getId() != null) {
-                InputStream inputStream = ContactsContract.Contacts.openContactPhotoInputStream(context.getContentResolver(),
-                        ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, new Long(c.getId())));
-
-                if (inputStream != null) {
-                    c.setContactPicture(BitmapFactory.decodeStream(inputStream));
-                }
-
-                if (inputStream != null) {
-                    inputStream.close();
-                }
+    private boolean addressAlready (String address) {
+        for (int i = 0; i < conversationList.size(); i++) {
+            if (conversationList.get(i).getAddress() == address) {
+                return false;
             }
+        }
+        return true;
+    }
 
-        } catch (FileNotFoundException e) {
-            Log.e("File Error", "Not found file : " + SAVE_CONVERSATIONS_PATH + "save_" + address + ".cryptmsg" + e);
-        } catch (IOException e) {
-            Log.e("File Error", e.toString());
-        } catch (ClassNotFoundException e) {
-            Log.e("ClassNotFound", e.toString());
+    private void verifyInitRecept () {
+        Log.i("INITRECEPT", "Verify init recept!");
+        List<Msg> sms = new ArrayList<>();
+        Uri uriSMSURI = Uri.parse("content://sms/inbox");
+        Cursor cur = getContentResolver().query(uriSMSURI, null, null, null, null);
+
+        while (cur != null && cur.moveToNext()) {
+            Msg m = new Msg(cur.getString(cur.getColumnIndex("address")), cur.getString(cur.getColumnIndexOrThrow("body")), cur.getString(cur.getColumnIndexOrThrow("date_sent")));
+            sms.add(m);
         }
 
-        Cursor cursor = getContentResolver().query(Uri.parse("content://sms/conversations"), null, null, null, null);
+        if (cur != null) {
+            cur.close();
+        }
 
-        if (cursor.moveToFirst()) {
-            do {
-                Conversation c = new Conversation();
-                for(int i = 0; i < cursor.getColumnCount(); i++)
-                {
-                    switch (cursor.getColumnName(i)) {
-                        case "snippet":
-                            c.setSnippet(cursor.getString(i));
-                            break;
-                        case "thread_id":
-                            c.setThread_id(cursor.getString(i));
-                            break;
+        for (int i = 0; i < sms.size(); i++) {
+            Msg m = sms.get(i);
+            if (m.getBody().contains("/CryptSMS-init1/") && addressAlready(m.getAddress())) {
+                String publicKey1 = m.getBody().replaceAll("/CryptSMS-init1/", "");
+                String publicKey2 = "";
+                for (int o = 0; o < sms.size(); o++) {
+                    if (sms.get(o).getAddress() == m.getAddress()) {
+                        // Same address
+                        if (sms.get(o).getBody().contains("/CryptSMS-init2/")) {
+                            publicKey2 = sms.get(o).getBody().replace("/CryptSMS-init2/", "");
+                        }
                     }
                 }
 
-                // Thread async
-                // ConversationTask ct = new ConversationTask(this);
-                // ct.execute(c);
+                if (publicKey2 == "") {
+                    Log.e("RecieveInit", "PUBLIC KEY 2 don't find");
+                } else {
+                    String publicKey = publicKey1 + publicKey2;
+                    Log.i("PUBLICKEY", publicKey);
 
-                conversations.add(c);
-            } while (cursor.moveToNext());
-        } else {
-            Log.i("MSG", "NO SMS !!!");
+                    Conversation c = new Conversation();
+                    c.setPublicKeyContact(publicKey);
+                    c.setAddress(m.getAddress());
+                    c.setInitResponse(true);
+                    c.saving(this);
+
+                    if (!c.getInit()) {
+                        c.sendInitMsg(this);
+                    }
+                }
+            }
         }
-
-        return conversations;
     }
-    */
 }

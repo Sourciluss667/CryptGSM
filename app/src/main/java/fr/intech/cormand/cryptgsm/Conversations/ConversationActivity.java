@@ -52,6 +52,8 @@ public class ConversationActivity extends Activity {
             // Init fait
             if (c.getInit()) {
                 //Affiche la conv etc...
+                popupMessageView.setTextColor(Color.rgb(0, 255, 0));
+                popupMessageView.setText("Init success !");
 
 
             } else { // Init non fait

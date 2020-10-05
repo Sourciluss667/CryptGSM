@@ -15,6 +15,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.provider.ContactsContract;
 import android.telephony.SmsManager;
+import android.util.Base64;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
@@ -58,14 +59,16 @@ public class Conversation implements Serializable {
     private List<Msg> msgList = new ArrayList<>();
     private String displayName = "Anonymous"; // good
     private String id = ""; // good
-    private Boolean init;
+    private Boolean initSend;
+    private Boolean initResponse;
     private String publicKey = "";
     private String privateKey = "";
     private String publicKeyContact = "";
     private transient SmsManager smsManager = null;
 
     public Conversation() {
-        init = false;
+        initSend = false;
+        initResponse = false;
         smsManager = SmsManager.getDefault();
     }
 
@@ -101,7 +104,9 @@ public class Conversation implements Serializable {
 
         // Generate Key
         try {
-            generateKey();
+            if (publicKey == "" && privateKey == "") {
+                generateKey();
+            }
         } catch (Exception e) {
             Log.e("sendInitMsg", "Generate Key Error !");
             e.printStackTrace();
@@ -120,6 +125,8 @@ public class Conversation implements Serializable {
                 if (getResultCode() == Activity.RESULT_OK) {
                     // Message en envoi
                     Log.i("sentPendingIntent", "Envoi !");
+                    setInit(true);
+                    saving(ctx);
                 } else {
                     Toast.makeText(ctx.getApplicationContext(), "Error sending init message !", Toast.LENGTH_LONG).show();
                     Log.e("MSG-Init", "ERROR send PENDING INTENT : " + getResultCode());
@@ -147,8 +154,10 @@ public class Conversation implements Serializable {
         String firstPart = this.publicKey.substring(0, index);
         String secondPart = this.publicKey.substring(index);
 
-        smsManager.sendTextMessage(this.address, null, "[CryptSMS-init1]" + firstPart + "[/CryptSMS-init1]", sentPendingIntent, deliveryPendingIntent);
-        smsManager.sendTextMessage(this.address, null, "[CryptSMS-init2]" + secondPart + "[/CryptSMS-init2]", sentPendingIntent, deliveryPendingIntent);
+        smsManager.sendTextMessage(this.address, null, "/CryptSMS-init1/" + firstPart + "/CryptSMS-init1/", sentPendingIntent, deliveryPendingIntent);
+        smsManager.sendTextMessage(this.address, null, "/CryptSMS-init2/" + secondPart + "/CryptSMS-init2/", sentPendingIntent, deliveryPendingIntent);
+
+        saving(ctx);
     }
 
     public static byte[] encrypt(byte[] publicKey, byte[] inputData)
@@ -335,7 +344,7 @@ public class Conversation implements Serializable {
     }
 
     public void setInit(Boolean init) {
-        this.init = init;
+        this.initSend = init;
     }
 
     public String getDisplayName() {
@@ -355,6 +364,14 @@ public class Conversation implements Serializable {
     }
 
     public Boolean getInit() {
-        return init;
+        return initSend;
+    }
+
+    public Boolean getInitResponse() {
+        return initResponse;
+    }
+
+    public void setInitResponse(Boolean initResponse) {
+        this.initResponse = initResponse;
     }
 }
