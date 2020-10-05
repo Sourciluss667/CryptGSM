@@ -52,13 +52,13 @@ import javax.crypto.Cipher;
 import fr.intech.cormand.cryptgsm.Msg;
 import fr.intech.cormand.cryptgsm.R;
 
-public class Conversation implements Serializable {
+public class Conversation implements Parcelable, Serializable {
 
     private String snippet;
     private String thread_id;
     private String address; // good
     private transient Bitmap contactPicture = null; // good
-    private transient List<Msg> msgList = new ArrayList<>();
+    private List<Msg> msgList = new ArrayList<>();
     private String displayName = "Anonymous"; // good
     private String id = ""; // good
     private Boolean initSend;
@@ -73,6 +73,34 @@ public class Conversation implements Serializable {
         initResponse = false;
         smsManager = SmsManager.getDefault();
     }
+
+    protected Conversation(Parcel in) {
+        msgList = in.createTypedArrayList(Msg.CREATOR);
+        snippet = in.readString();
+        thread_id = in.readString();
+        address = in.readString();
+        displayName = in.readString();
+        id = in.readString();
+        byte tmpInitSend = in.readByte();
+        initSend = tmpInitSend == 0 ? null : tmpInitSend == 1;
+        byte tmpInitResponse = in.readByte();
+        initResponse = tmpInitResponse == 0 ? null : tmpInitResponse == 1;
+        publicKey = in.readString();
+        privateKey = in.readString();
+        publicKeyContact = in.readString();
+    }
+
+    public static final Creator<Conversation> CREATOR = new Creator<Conversation>() {
+        @Override
+        public Conversation createFromParcel(Parcel in) {
+            return new Conversation(in);
+        }
+
+        @Override
+        public Conversation[] newArray(int size) {
+            return new Conversation[size];
+        }
+    };
 
     private void generateKey () throws NoSuchAlgorithmException {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
@@ -98,25 +126,20 @@ public class Conversation implements Serializable {
             Log.e("PUBLICKKEYCONTACT", "PublicKeyContact is empty !");
         }
 
-        String str = encrypt(publicKey, body);
-        String str2 = decrypt(privateKey, str);
-        Log.i("Body", body);
-        Log.i("BodyEncrypted", str);
-        Log.i("BodyDecrypted", str2);
-
-
         String bodyCrypt = encrypt(publicKeyContact, body);
 
         smsManager.sendTextMessage(this.address, null, "/CryptSMS/" + bodyCrypt + "/CryptSMS/", null, null);
     }
 
     public void sendInitMsg(final Context ctx) {
+        // If Init already sent
+        if (initSend) {
+            return;
+        }
 
         // Generate Key
         try {
-            if (publicKey == "" && privateKey == "") {
-                generateKey();
-            }
+            generateKey();
         } catch (Exception e) {
             Log.e("sendInitMsg", "Generate Key Error !");
             e.printStackTrace();
@@ -187,7 +210,7 @@ public class Conversation implements Serializable {
         }
     }
 
-    private static String decrypt(String privateKey, String inputData) {
+    public static String decrypt(String privateKey, String inputData) {
         try {
             PrivateKey key = KeyFactory.getInstance("RSA")
                     .generatePrivate(new PKCS8EncodedKeySpec(Base64.decode(privateKey, Base64.DEFAULT)));
@@ -215,6 +238,7 @@ public class Conversation implements Serializable {
             return true;
         } catch (IOException e) {
             Log.e("File Error", e.toString());
+            e.printStackTrace();
             return false;
         }
     }
@@ -284,6 +308,12 @@ public class Conversation implements Serializable {
                         }
                     }
 
+                    if (c.getMsgList() != null) {
+                        Log.i("Conversation", "Good : " + c.getMsgList());
+                    } else {
+                        Log.i("Conversation", "Not good !");
+                    }
+
                     result.add(c);
 
                 } catch(Exception e) {
@@ -304,7 +334,15 @@ public class Conversation implements Serializable {
 
         while (cur != null && cur.moveToNext()) {
             Msg m = new Msg(cur.getString(cur.getColumnIndex("address")), cur.getString(cur.getColumnIndexOrThrow("body")), cur.getString(cur.getColumnIndexOrThrow("date_sent")));
-            if (!msgList.contains(m)) {
+            Boolean good = true;
+            for (int i = 0; i < msgList.size(); i++) {
+                if (msgList.get(i).getDate_sent().contentEquals(m.getDate_sent()) && msgList.get(i).getBody().contentEquals(m.getBody())) {
+                    good = false;
+                    break;
+                }
+            }
+            if (good) {
+                Log.i("DEBUUUUUUUUUUUUUUG", "Added.");
                 msgList.add(m);
             }
         }
@@ -408,5 +446,25 @@ public class Conversation implements Serializable {
 
     public void setInitResponse(Boolean initResponse) {
         this.initResponse = initResponse;
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeTypedList(msgList);
+        dest.writeString(address);
+        dest.writeString(snippet);
+        dest.writeString(thread_id);
+        dest.writeString(displayName);
+        dest.writeString(id);
+        dest.writeString(publicKey);
+        dest.writeString(privateKey);
+        dest.writeString(publicKeyContact);
+        dest.writeBoolean(initSend);
+        dest.writeBoolean(initResponse);
     }
 }

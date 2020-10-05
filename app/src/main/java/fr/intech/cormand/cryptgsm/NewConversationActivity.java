@@ -70,7 +70,7 @@ public class NewConversationActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // Init conv with address in textPhoneView
-                conversation.setAddress(textPhoneView.getText().toString().replaceAll(" ", ""));
+                conversation.setAddress(textPhoneView.getText().toString().replaceAll(" ", "").replaceAll("-", ""));
                 if (PhoneNumberUtils.isGlobalPhoneNumber(conversation.getAddress())) {
                     // Good phone number
                     // Verify if conversation not exist ?

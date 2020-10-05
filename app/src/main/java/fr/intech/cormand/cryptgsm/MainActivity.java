@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.content.ContentUris;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -51,12 +52,6 @@ public class MainActivity extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
 
-        // Get & Verify if permissions granted
-        if (!getPermissions()) {
-            // Don't get permissions
-            Log.e("PERMISSIONS", "NO PERMISSIONS !!");
-        }
-
         // RecyclerView
         conversationListView = findViewById(R.id.recycler_view_conversations);
         conversationList = new ArrayList<>();
@@ -76,6 +71,16 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // Get & Verify if permissions granted
+        if (!getPermissions()) {
+            // Don't get permissions
+            Log.e("PERMISSIONS", "NO PERMISSIONS !!");
+        }
     }
 
     @Override
@@ -102,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
                 checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             // Get Permission
-            requestPermissions(new String[] { Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS, Manifest.permission.READ_CONTACTS }, 2);
+            requestPermissions(new String[] { Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS, Manifest.permission.READ_CONTACTS, Manifest.permission.RECEIVE_SMS }, 2);
             return true;
         }
         return true;
@@ -110,11 +115,28 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean addressAlreadyInit (String address) {
         for (int i = 0; i < conversationList.size(); i++) {
-            if (conversationList.get(i).getAddress().contentEquals(address) && conversationList.get(i).getInitResponse()) {
+            Log.i("SMSAlreadyInit", conversationList.get(i).getAddress() + " =? " + address);
+            if (conversationList.get(i).getAddress().contentEquals(address) && conversationList.get(i).getInitResponse() && conversationList.get(i).getInit()) {
                 return true;
             }
         }
         return false;
+    }
+
+    private int addressExist (String address) {
+        for (int i = 0; i < conversationList.size(); i++) {
+            Log.i("SMSAlreadyInit", conversationList.get(i).getAddress() + " =? " + address);
+            if (conversationList.get(i).getAddress().contentEquals(address)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    static public void refreshData (String address, Context ctx) {
+        Conversation c = Conversation.loading(ctx, address);
+        c.findAllMsg(ctx);
+        c.saving(ctx);
     }
 
     private void verifyInitRecept () {
@@ -145,9 +167,6 @@ public class MainActivity extends AppCompatActivity {
                         publicKey2 = sms.get(i-1).getBody().replaceAll("/CryptSMS-init2/", "");
                     }
                 } else {
-                    Log.i("SMS", "adr: " + sms.get(i).getAddress() + ", body: " + sms.get(i).getBody());
-                    Log.i("SMS", "adr: " + sms.get(i - 1).getAddress() + ", body: " + sms.get(i - 1).getBody());
-                    Log.i("SMS", "Go boucle!");
                     for (int o = 0; o < sms.size(); o++) {
                         if (sms.get(o).getAddress().contentEquals(m.getAddress())) {
                             // Same address
@@ -165,18 +184,29 @@ public class MainActivity extends AppCompatActivity {
                     String publicKey = publicKey1 + publicKey2;
                     Log.i("PUBLICKEY", publicKey);
 
-                    Conversation c = new Conversation();
-                    c.setPublicKeyContact(publicKey);
-                    c.setAddress(m.getAddress());
-                    c.setInitResponse(true);
-                    c.saving(this);
 
-                    if (!conversationList.contains(c)) {
-                        conversationList.add(c);
-                    }
+                    int index = addressExist(m.getAddress());
+                    if (index != -1) {
+                        conversationList.get(index).setPublicKeyContact(publicKey);
+                        conversationList.get(index).setInitResponse(true);
+                        conversationList.get(index).saving(this);
+                        if (!conversationList.get(index).getInit()) {
+                            conversationList.get(index).sendInitMsg(this);
+                        }
+                    } else {
+                        Conversation c = new Conversation();
+                        c.setPublicKeyContact(publicKey);
+                        c.setAddress(m.getAddress());
+                        c.setInitResponse(true);
+                        c.saving(this);
 
-                    if (!c.getInit()) {
-                        c.sendInitMsg(this);
+                        if (!conversationList.contains(c)) {
+                            conversationList.add(c);
+                        }
+
+                        if (!c.getInit()) {
+                            c.sendInitMsg(this);
+                        }
                     }
                 }
             }
