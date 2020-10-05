@@ -82,9 +82,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        verifyInitRecept();
-
         conversationList = Conversation.loadingAll(this);
+
+        verifyInitRecept();
 
         // No conversations
         if (conversationList.size() < 1) {
@@ -108,13 +108,13 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    private boolean addressAlready (String address) {
+    private boolean addressAlreadyInit (String address) {
         for (int i = 0; i < conversationList.size(); i++) {
-            if (conversationList.get(i).getAddress() == address) {
-                return false;
+            if (conversationList.get(i).getAddress().contentEquals(address) && conversationList.get(i).getInitResponse()) {
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     private void verifyInitRecept () {
@@ -134,20 +134,33 @@ public class MainActivity extends AppCompatActivity {
 
         for (int i = 0; i < sms.size(); i++) {
             Msg m = sms.get(i);
-            if (m.getBody().contains("/CryptSMS-init1/") && addressAlready(m.getAddress())) {
+            //Log.i("Msg", m.getAddress() + ": " + m.getBody());
+            if (m.getBody().startsWith("/CryptSMS-init1/") && !addressAlreadyInit(m.getAddress())) {
                 String publicKey1 = m.getBody().replaceAll("/CryptSMS-init1/", "");
                 String publicKey2 = "";
-                for (int o = 0; o < sms.size(); o++) {
-                    if (sms.get(o).getAddress() == m.getAddress()) {
-                        // Same address
-                        if (sms.get(o).getBody().contains("/CryptSMS-init2/")) {
-                            publicKey2 = sms.get(o).getBody().replace("/CryptSMS-init2/", "");
+
+                // Find fast or for while
+                if (sms.get(i - 1).getAddress().contentEquals(m.getAddress())) {
+                    if (sms.get(i - 1).getBody().startsWith("/CryptSMS-init2/")) {
+                        publicKey2 = sms.get(i-1).getBody().replaceAll("/CryptSMS-init2/", "");
+                    }
+                } else {
+                    Log.i("SMS", "adr: " + sms.get(i).getAddress() + ", body: " + sms.get(i).getBody());
+                    Log.i("SMS", "adr: " + sms.get(i - 1).getAddress() + ", body: " + sms.get(i - 1).getBody());
+                    Log.i("SMS", "Go boucle!");
+                    for (int o = 0; o < sms.size(); o++) {
+                        if (sms.get(o).getAddress().contentEquals(m.getAddress())) {
+                            // Same address
+                            if (sms.get(o).getBody().startsWith("/CryptSMS-init2/")) {
+                                publicKey2 = sms.get(o).getBody().replaceAll("/CryptSMS-init2/", "");
+                            }
                         }
                     }
                 }
 
                 if (publicKey2 == "") {
-                    Log.e("RecieveInit", "PUBLIC KEY 2 don't find");
+                    Log.e("RecieveInit", "PUBLIC KEY 2 don't find: " + publicKey2);
+
                 } else {
                     String publicKey = publicKey1 + publicKey2;
                     Log.i("PUBLICKEY", publicKey);
@@ -157,6 +170,10 @@ public class MainActivity extends AppCompatActivity {
                     c.setAddress(m.getAddress());
                     c.setInitResponse(true);
                     c.saving(this);
+
+                    if (!conversationList.contains(c)) {
+                        conversationList.add(c);
+                    }
 
                     if (!c.getInit()) {
                         c.sendInitMsg(this);

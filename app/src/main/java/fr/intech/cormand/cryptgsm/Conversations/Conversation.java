@@ -7,9 +7,11 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
 import android.nfc.Tag;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -56,7 +58,7 @@ public class Conversation implements Serializable {
     private String thread_id;
     private String address; // good
     private transient Bitmap contactPicture = null; // good
-    private List<Msg> msgList = new ArrayList<>();
+    private transient List<Msg> msgList = new ArrayList<>();
     private String displayName = "Anonymous"; // good
     private String id = ""; // good
     private Boolean initSend;
@@ -73,31 +75,39 @@ public class Conversation implements Serializable {
     }
 
     private void generateKey () throws NoSuchAlgorithmException {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
 
-            SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
+        SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
 
-            // 512 is keysize
-            keyGen.initialize(512, random);
+        // 512 is keysize
+        keyGen.initialize(512, random);
 
-            KeyPair generateKeyPair = keyGen.generateKeyPair();
-            byte[] publicKeyBytes = generateKeyPair.getPublic().getEncoded();
-            byte[] privateKeyBytes = generateKeyPair.getPrivate().getEncoded();
-            StringBuffer publicKeyBuf = new StringBuffer();
-            StringBuffer privateKeyBuf = new StringBuffer();
-
-        for (int i = 0; i < publicKeyBytes.length; ++i) {
-            publicKeyBuf.append(Integer.toHexString(0x0100 + (publicKeyBytes[i] & 0x00FF)).substring(1));
-        }
-        for (int i = 0; i < privateKeyBytes.length; ++i) {
-            privateKeyBuf.append(Integer.toHexString(0x0100 + (privateKeyBytes[i] & 0x00FF)).substring(1));
-        }
-
-        publicKey = publicKeyBuf.toString();
-        privateKey = privateKeyBuf.toString();
+        KeyPair generateKeyPair = keyGen.generateKeyPair();
+        publicKey = Base64.encodeToString(generateKeyPair.getPublic().getEncoded(), Base64.DEFAULT);
+        privateKey = Base64.encodeToString(generateKeyPair.getPrivate().getEncoded(), Base64.DEFAULT);
 
         Log.i("KEY", "PUBLIC: " + publicKey);
         Log.i("KEY", "PRIVATE: " + privateKey);
+    }
+
+    public void sendSms (String body) {
+        if (smsManager == null) {
+            smsManager = SmsManager.getDefault();
+        }
+        if (publicKeyContact == "") {
+            Log.e("PUBLICKKEYCONTACT", "PublicKeyContact is empty !");
+        }
+
+        String str = encrypt(publicKey, body);
+        String str2 = decrypt(privateKey, str);
+        Log.i("Body", body);
+        Log.i("BodyEncrypted", str);
+        Log.i("BodyDecrypted", str2);
+
+
+        String bodyCrypt = encrypt(publicKeyContact, body);
+
+        smsManager.sendTextMessage(this.address, null, "/CryptSMS/" + bodyCrypt + "/CryptSMS/", null, null);
     }
 
     public void sendInitMsg(final Context ctx) {
@@ -160,32 +170,38 @@ public class Conversation implements Serializable {
         saving(ctx);
     }
 
-    public static byte[] encrypt(byte[] publicKey, byte[] inputData)
-            throws Exception {
+    private static String encrypt(String publicKey, String inputData) {
+        try {
+            PublicKey key = KeyFactory.getInstance("RSA")
+                    .generatePublic(new X509EncodedKeySpec(Base64.decode(publicKey, Base64.DEFAULT)));
 
-        PublicKey key = KeyFactory.getInstance("RSA")
-                .generatePublic(new X509EncodedKeySpec(publicKey));
+            Cipher cipher = Cipher.getInstance("RSA");
+            cipher.init(Cipher.ENCRYPT_MODE, key);
 
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.ENCRYPT_MODE, key);
+            String encryptedString = Base64.encodeToString(cipher.doFinal(inputData.getBytes()), Base64.DEFAULT);
 
-        byte[] encryptedBytes = cipher.doFinal(inputData);
-
-        return encryptedBytes;
+            return encryptedString;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
-    public static byte[] decrypt(byte[] privateKey, byte[] inputData)
-            throws Exception {
+    private static String decrypt(String privateKey, String inputData) {
+        try {
+            PrivateKey key = KeyFactory.getInstance("RSA")
+                    .generatePrivate(new PKCS8EncodedKeySpec(Base64.decode(privateKey, Base64.DEFAULT)));
 
-        PrivateKey key = KeyFactory.getInstance("RSA")
-                .generatePrivate(new PKCS8EncodedKeySpec(privateKey));
+            Cipher cipher = Cipher.getInstance("RSA");
+            cipher.init(Cipher.DECRYPT_MODE, key);
 
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.DECRYPT_MODE, key);
+            String decryptedBytes = new String(cipher.doFinal(Base64.decode(inputData, Base64.DEFAULT)));
 
-        byte[] decryptedBytes = cipher.doFinal(inputData);
-
-        return decryptedBytes;
+            return decryptedBytes;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public boolean saving(Context context) {
@@ -277,6 +293,25 @@ public class Conversation implements Serializable {
         }
 
         return result;
+    }
+
+    public void findAllMsg (Context ctx) {
+        if (msgList == null) {
+            msgList = new ArrayList<>();
+        }
+        Uri uriSMSURI = Uri.parse("content://sms/inbox");
+        Cursor cur = ctx.getContentResolver().query(uriSMSURI, new String[] {"address", "body", "date_sent"},"address='" + this.address + "'", null, null);
+
+        while (cur != null && cur.moveToNext()) {
+            Msg m = new Msg(cur.getString(cur.getColumnIndex("address")), cur.getString(cur.getColumnIndexOrThrow("body")), cur.getString(cur.getColumnIndexOrThrow("date_sent")));
+            if (!msgList.contains(m)) {
+                msgList.add(m);
+            }
+        }
+
+        if (cur != null) {
+            cur.close();
+        }
     }
 
     public String getSnippet() {
